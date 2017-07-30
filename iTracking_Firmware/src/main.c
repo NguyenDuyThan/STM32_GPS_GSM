@@ -13,6 +13,9 @@
 #include "pb.h"
 #include "pb_common.h"
 
+#define FAST_I2C_MODE
+#define Slave_Address 0x68
+#define BufferSIZE 3
 #define Buzzer		GPIO_Pin_12
 #define GSM_LED		GPIO_Pin_5
 #define GPS_LED		GPIO_Pin_5
@@ -22,9 +25,9 @@
 #define GSM_RST_Port	GPIOC
 
 #define bufLogSize	1024
-#define bufRxDataUart2Size	512
-#define bufRxDataUart1Size	0xFF
-#define bufRxDataUart3Size   0xFF
+#define bufRxDataUart2Size	1024
+#define bufRxDataUart1Size	1024
+#define bufRxDataUart3Size   1024
 
 #define chuoiConnect	 "CONNECT {\"verbose\":true,\"pedantic\":false,\"ssl_required\":false,\"auth_token\":\"2I8080bT86aQD45vQkZk1UvVGvrU3qEE\",\"name\":\"1410974732\",\"lang\":\"c\",\"version\":\"2.10_DVS\"}\r\n"
 #define debugA	0
@@ -58,15 +61,15 @@ struct debugFlag {
 struct debugFlag dbQuecTelM95, db;
 
 typedef struct sysFlag_t {
-	int runOpen;
-	int sendSub;
-	int sendPub;
-	int dataOther;
-	int QIRDI;
-	int tcp;
-	int nat;
-	int ping;
-	int newmsg;
+	volatile int runOpen;
+	volatile int sendSub;
+	volatile int sendPub;
+	volatile int dataOther;
+	volatile int QIRDI;
+	volatile int tcp;
+	volatile int nat;
+	volatile int ping;
+	volatile int newmsg;
 } sysFlag;
 sysFlag QTM95;
 
@@ -82,6 +85,11 @@ enum statusQTM95Enum {
 };
 enum statusQTM95Enum statusQTM95;
 
+/************ I2C ************/
+volatile uint8_t MasterTxBuffer[BufferSIZE] = { 1, 2, 3 };
+volatile uint8_t MasterRxBuffer[BufferSIZE];
+volatile uint8_t SlaveTxBuffer[BufferSIZE] = { 4, 5, 6 };
+volatile uint8_t SlaveRxBuffer[BufferSIZE];
 /***** GPS *****/
 int gpggalenght = 0;
 int gpgsalenght = 0;
@@ -160,6 +168,13 @@ int decodeDat(char *indat);
 int getMSG(char *msg, char *dis);
 int getDataServer();
 
+void I2C_ByteWrite(I2C_TypeDef* I2Cx, u8 slaveAddr, u8* pBuffer,
+		u16 NumByteToWrite);
+void I2C_BufferRead(I2C_TypeDef* I2Cx, u8 slaveAddr, u8* pBuffer,
+		u16 NumByteToRead);
+void I2C_BufferRead_Addr(I2C_TypeDef* I2Cx, u8 slaveAddr, u8* pBuffer,
+		u8 ReadAddr, u16 NumByteToRead);
+
 void Delayus(__IO uint32_t nCount);
 
 /************************ Config **************************/
@@ -188,6 +203,12 @@ void GPIO_Configuration(void) {
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_InitStructure.GPIO_Pin = PWR_GPS;
 	GPIO_Init(GPIOA, &GPIO_InitStructure);
+
+	/************************** I2C config **************************************/
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_8 | GPIO_Pin_9;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP | GPIO_Mode_IPU
+			| GPIO_Mode_Out_OD;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	/************************** USART config **************************************/
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO, ENABLE);
 	GPIO_PinRemapConfig(GPIO_Remap_SWJ_Disable, ENABLE);
@@ -270,6 +291,55 @@ void USARTx_Configuration(USART_TypeDef* USARTx) {
 	USART_ClearITPendingBit(USARTx, USART_IT_RXNE);
 }
 
+void I2C_Configuration(void) {
+	I2C_InitTypeDef I2C_InitStructure;
+
+#ifdef FAST_I2C_MODE
+#define I2C_SPEED 400000
+#define I2C_DUTYCYCLE I2C_DutyCycle_16_9
+#else /* STANDARD_I2C_MODE*/
+#define I2C_SPEED 100000
+#define I2C_DUTYCYCLE I2C_DutyCycle_2
+#endif /* FAST_I2C_MODE*/
+
+	RCC_APB1PeriphClockCmd(RCC_APB1Periph_I2C1, ENABLE);
+
+//	GPIO_PinAFConfig(GPIOB, GPIO_PinSource8, GPIO_AF_I2C1);  // only connect to
+//	GPIO_PinAFConfig(GPIOB, GPIO_PinSource9, GPIO_AF_I2C1); // only connect to
+//	GPIO_PiGPIO_Mode_Out_ODnAFConfig(GPIOB, GPIO_PinSource10, GPIO_AF_I2C2);  // only connect to
+//	GPIO_PinAFConfig(GPIOB, GPIO_PinSource11, GPIO_AF_I2C2);  // only connect to
+
+	/************************************* Master ******************************/
+	/* I2C De-initialize */
+	I2C_DeInit(I2C1);
+	I2C_InitStructure.I2C_Mode = I2C_Mode_I2C;
+	I2C_InitStructure.I2C_DutyCycle = I2C_DUTYCYCLE;
+	I2C_InitStructure.I2C_OwnAddress1 = 0x01;
+	I2C_InitStructure.I2C_Ack = I2C_Ack_Enable;
+	I2C_InitStructure.I2C_ClockSpeed = I2C_SPEED;
+	I2C_InitStructure.I2C_AcknowledgedAddress = I2C_AcknowledgedAddress_7bit;
+	I2C_Init(I2C1, &I2C_InitStructure);
+	/* I2C ENABLE */
+	I2C_Cmd(I2C1, ENABLE);
+	/* Enable Interrupt */
+//	I2C_ITConfig(I2C1, (I2C_IT_ERR ) , ENABLE);
+//	I2C_ITConfig(I2C1, (I2C_IT_ERR | I2C_IT_EVT | I2C_IT_BUF) , ENABLE);
+	/************************************* Slave ******************************/
+	/* I2C De-initialize */
+	/*	I2C_DeInit(I2C2);
+	 I2C_InitStructure.I2C_Mode = I2C_Mode_I2C;
+	 I2C_InitStructure.I2C_DutyCycle = I2C_DUTYCYCLE;
+	 I2C_InitStructure.I2C_OwnAddress1 = Slave_Address;
+	 I2C_InitStructure.I2C_Ack = I2C_Ack_Enable;
+	 I2C_InitStructure.I2C_ClockSpeed = I2C_SPEED;
+	 I2C_InitStructure.I2C_AcknowledgedAddress = I2C_AcknowledgedAddress_7bit;
+	 I2C_Init(I2C2, &I2C_InitStructure);*/
+	/* I2C ENABLE */
+	/*I2C_Cmd(I2C2, ENABLE);*/
+	/* Enable Interrupt */
+	/*I2C_ITConfig(I2C2, (I2C_IT_ERR | I2C_IT_EVT | I2C_IT_BUF), ENABLE);*/
+}
+
 void NVIC_Configuration(void) {
 	NVIC_InitTypeDef NVIC_InitStructure;
 //	NVIC_PriorityGroupConfig(NVIC_PriorityGroup_1);
@@ -292,7 +362,21 @@ void NVIC_Configuration(void) {
 	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 2;
 	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
 	NVIC_Init(&NVIC_InitStructure);
+
+	NVIC_InitStructure.NVIC_IRQChannel = I2C2_EV_IRQn;
+	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 1;
+	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
+	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+	NVIC_Init(&NVIC_InitStructure);
+
+	NVIC_InitStructure.NVIC_IRQChannel = I2C2_ER_IRQn;
+	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 1;
+	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
+	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+	NVIC_Init(&NVIC_InitStructure);
 }
+
+///////////////////////////////////////////////////////////////////
 
 void USARTx_Sendchar(USART_TypeDef* USARTx, char Data) {
 	while (USART_GetFlagStatus(USARTx, USART_FLAG_TC) == RESET)
@@ -315,7 +399,171 @@ void USARTx_SendString(USART_TypeDef* USARTx, char *Str) {
 	}
 }
 
-/**********************************************************/
+void I2C_ByteWrite(I2C_TypeDef* I2Cx, u8 slaveAddr, u8* pBuffer,
+		u16 NumByteToWrite) {
+	int i;
+	/* Send START condition */
+	I2C_GenerateSTART(I2Cx, ENABLE);
+	/* Test on EV5 and clear it */
+	while (!I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_MODE_SELECT))
+		;
+
+	/* Send slave address for write */
+	I2C_Send7bitAddress(I2Cx, slaveAddr, I2C_Direction_Transmitter);
+
+	/* Test on EV6 and clear it */
+	while (!I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_TRANSMITTER_MODE_SELECTED))
+		;
+
+	for (i = 0; i < NumByteToWrite; i++) {
+		/* Send the byte to be written */
+		I2C_SendData(I2Cx, pBuffer[i]);
+
+		/* Test on EV8 and clear it */
+		while (!I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_BYTE_TRANSMITTED))
+			;
+	}
+
+	/* Send STOP condition */
+	I2C_GenerateSTOP(I2Cx, ENABLE);
+}
+
+void I2C_BufferRead(I2C_TypeDef* I2Cx, u8 slaveAddr, u8* pBuffer,
+		u16 NumByteToRead) {
+	/* While the bus is busy */
+	while (I2C_GetFlagStatus(I2Cx, I2C_FLAG_BUSY))
+		;
+
+	/* Send START condition */
+	I2C_GenerateSTART(I2Cx, ENABLE);
+
+	/* Test on EV5 and clear it */
+	while (!I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_MODE_SELECT))
+		;
+
+	/* Send slave address for write */
+	I2C_Send7bitAddress(I2Cx, slaveAddr, I2C_Direction_Transmitter);
+
+	/* Test on EV6 and clear it */
+	while (!I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_TRANSMITTER_MODE_SELECTED))
+		;
+
+	/* Clear EV6 by setting again the PE bit */
+	I2C_Cmd(I2Cx, ENABLE);
+
+	/* Send START condition a second time */
+	I2C_GenerateSTART(I2Cx, ENABLE);
+
+	/* Test on EV5 and clear it */
+	while (!I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_MODE_SELECT))
+		;
+
+	/* Send slave address for read */
+	I2C_Send7bitAddress(I2Cx, slaveAddr, I2C_Direction_Receiver);
+
+	/* Test on EV6 and clear it */
+	while (!I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_RECEIVER_MODE_SELECTED))
+		;
+
+	/* While there is data to be read */
+	while (NumByteToRead) {
+		if (NumByteToRead == 1) {
+			/* Disable Acknowledgement */
+			I2C_AcknowledgeConfig(I2Cx, DISABLE);
+
+			/* Send STOP Condition */
+			I2C_GenerateSTOP(I2Cx, ENABLE);
+		}
+
+		/* Test on EV7 and clear it */
+		if (I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_BYTE_RECEIVED)) {
+			/* Read a byte from the slave */
+			*pBuffer = I2C_ReceiveData(I2Cx);
+
+			/* Point to the next location where the byte read will be saved */
+			pBuffer++;
+
+			/* Decrement the read bytes counter */
+			NumByteToRead--;
+		}
+	}
+
+	/* Enable Acknowledgement to be ready for another reception */
+	I2C_AcknowledgeConfig(I2Cx, ENABLE);
+}
+
+void I2C_BufferRead_Addr(I2C_TypeDef* I2Cx, u8 slaveAddr, u8* pBuffer,
+		u8 ReadAddr, u16 NumByteToRead) {
+	/* While the bus is busy */
+	while (I2C_GetFlagStatus(I2Cx, I2C_FLAG_BUSY))
+		;
+
+	/* Send START condition */
+	I2C_GenerateSTART(I2Cx, ENABLE);
+
+	/* Test on EV5 and clear it */
+	while (!I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_MODE_SELECT))
+		;
+
+	/* Send slave address for write */
+	I2C_Send7bitAddress(I2Cx, slaveAddr, I2C_Direction_Transmitter);
+
+	/* Test on EV6 and clear it */
+	while (!I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_TRANSMITTER_MODE_SELECTED))
+		;
+
+	/* Clear EV6 by setting again the PE bit */
+	I2C_Cmd(I2Cx, ENABLE);
+
+	/* Send the slave internal address to write to */
+	I2C_SendData(I2Cx, ReadAddr);
+
+	/* Test on EV8 and clear it */
+	while (!I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_BYTE_TRANSMITTED))
+		;
+
+	/* Send START condition a second time */
+	I2C_GenerateSTART(I2Cx, ENABLE);
+
+	/* Test on EV5 and clear it */
+	while (!I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_MODE_SELECT))
+		;
+
+	/* Send slave address for read */
+	I2C_Send7bitAddress(I2Cx, slaveAddr, I2C_Direction_Receiver);
+
+	/* Test on EV6 and clear it */
+	while (!I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_RECEIVER_MODE_SELECTED))
+		;
+
+	/* While there is data to be read */
+	while (NumByteToRead) {
+		if (NumByteToRead == 1) {
+			/* Disable Acknowledgement */
+			I2C_AcknowledgeConfig(I2Cx, DISABLE);
+
+			/* Send STOP Condition */
+			I2C_GenerateSTOP(I2Cx, ENABLE);
+		}
+
+		/* Test on EV7 and clear it */
+		if (I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_BYTE_RECEIVED)) {
+			/* Read a byte from the slave */
+			*pBuffer = I2C_ReceiveData(I2Cx);
+
+			/* Point to the next location where the byte read will be saved */
+			pBuffer++;
+
+			/* Decrement the read bytes counter */
+			NumByteToRead--;
+		}
+	}
+
+	/* Enable Acknowledgement to be ready for another reception */
+	I2C_AcknowledgeConfig(I2Cx, ENABLE);
+}
+
+/********************** Common Function **************************/
 
 void splitDataGPS() {
 	unsigned char data;
@@ -393,21 +641,6 @@ void debugWriteLog(char *label, const char *title, char *Str) {
 void debugPrint(char *strs) {
 	USARTx_SendString(USART1, strs);
 	USARTx_SendString(USART1, "\r\n");
-}
-
-/*---------------------------- GSM_Cmd -------------------------------------------
- * Brief: send AT command to module SIM over UART2
- * Param:	AT			|	IN	|	input AT command to send (Ex: "AT+CPIN?").
- * Ret:		Not.
- -------------------------------------------------------------------------------*/
-
-void GSM_Cmd(char *AT) {
-	char *cmd = pvPortMalloc(strlen(AT) + 5);
-	memset(cmd, 0, strlen(AT) + 5);
-	strcpy(cmd, AT);
-	strcat(cmd, "\r\n");
-	USARTx_SendString(USART2, cmd);
-	vPortFree(cmd);
 }
 
 /*---------------------------- checkStr -------------------------------------------
@@ -547,6 +780,7 @@ int main(void) {
 	db.log = 1;
 
 	GPIO_Configuration();
+	I2C_Configuration();
 	USARTx_Configuration(USART1);
 	USARTx_Configuration(USART2);
 	USARTx_Configuration(USART3);
@@ -564,7 +798,7 @@ int main(void) {
 	debugInfo(">>>>>>> OK.");
 	debugInfo("Waiting for data to show...");
 
-	xTaskCreate(TaskB, (signed char* )"TaskB", 512, NULL, 4, NULL);
+	xTaskCreate(TaskB, (signed char* )"TaskB", 1024, NULL, 4, NULL);
 	xTaskCreate(TaskA, (signed char* )"TaskA", 128, NULL, 3, NULL);
 	xTaskCreate(TaskC, (signed char* )"TaskC", 128, NULL, 2, NULL);
 	xTaskCreate(TaskD, (signed char* )"TaskD", 128, NULL, 1, NULL);
@@ -572,142 +806,94 @@ int main(void) {
 }
 
 static void TaskA(void *pvParameters) {
-
+	/*int index = 0;
+	 char temp[100];
+	 char title[6];//1
+	 char time_UTC[11];//2
+	 char latitude[10];//3
+	 char NS[2];//4
+	 char longtitude[10];//5
+	 char EW[2];//6
+	 char qualitiGPS[2];//7
+	 char number_satellites[5];//8
+	 char horizontal_dilution[10];//9
+	 char antenna_sea[4];//10
+	 char unit_antenna[2];//11
+	 char Geoidal_separation[4];//12
+	 char unit_Geoidal[2];//13
+	 char Differential_GPS[4];//14
+	 char station_ID[5];//15
+	 char checksum[3];//16
+	 strcpy(temp, GPRMC);
+	 int st = strlen(GPRMC) - 4;
+	 char *p;*/
 	for (;;) {
 #if debugA
-		int index = 0;
-		//int i;
-		//char *a = (char *)malloc(100*sizeof(char));
-		//char **b = (char **)malloc(100*sizeof(char));;
-		char temp[100];
-		char title[6];//1
-		char time_UTC[11];//2
-		char latitude[10];//3
-		char NS[2];//4
-		char longtitude[10];//5
-		char EW[2];//6
-		char qualitiGPS[2];//7
-		char number_satellites[5];//8
-		char horizontal_dilution[10];//9
-		char antenna_sea[4];//10
-		char unit_antenna[2];//11
-		char Geoidal_separation[4];//12
-		char unit_Geoidal[2];//13
-		char Differential_GPS[4];//14
-		char station_ID[5];//15
-		char checksum[3];//16
-		strcpy(temp, GPRMC);
-		USARTx_SendString(USART1, (char*) GPRMC);
-		//char chuoisao[]="*";
-		int st = strlen(GPRMC) - 4;
-		//int dauphay = ',';
-		//strncpy(chuoitrichra, GPGGA, n);
-		//chuoitam  = strchr(GPGGA, dauphay);
-		//int st = strlen(chuoicontro);
-		//int m= (st-2);
-		//char *test;
-		//test=strstr(temp,chuoisao);
-		//USARTx_SendString(USART1,(char*)test);
-		//USARTx_SendString(USART1,(char*)"\n");
-		//int check=strlen(temp);
-		char *p;
-//    	if(st<10)
-//    	{
-//    		USARTx_SendString(USART1,(char*)"TaskA: Waiting for data getting...\n");
-//        	USARTx_SendString(USART1,(char*)GPGGA);
-//        	USARTx_SendString(USART1,(char*)GPGSA);
-//        	USARTx_SendString(USART1,(char*)GPRMC);
-//    	}
-//    	else if (st>=10)
 		{
-			USARTx_SendString(USART1, (char*) "^^^OK received data^^^\n");
 			p = strtok(temp, ",*"); //cat chuoi bang cac ky tu
-			////////////////////////////////////////////////////////
-
-///////////////////////////////////////////////////////////////////////////////
-			while (index < 16)//for(index ; index<16 ; index++ )//while(p != NULL)
+			while (index < 16)
 			{
 				switch (index) {
 					case 0:
-					//USARTx_SendString(USART1,(char*)"1\n");
 					strcpy(title, p);
 					index++;
-					break;//optional
+					break; //optional
 					case 1:
-					//USARTx_SendString(USART1,(char*)"2\n");
 					strcpy(time_UTC, p);
 					index++;
 					break;//optional
 					case 2:
-					//USARTx_SendString(USART1,(char*)"3\n");
 					strcpy(latitude, p);
 					index++;
 					break;//optional
 					case 3:
-					//USARTx_SendString(USART1,(char*)"4\n");
 					strcpy(NS, p);
 					index++;
 					break;//optional
 					case 4:
-					//USARTx_SendString(USART1,(char*)"5\n");
 					strcpy(longtitude, p);
 					index++;
 					break;
 					case 5:
-					//USARTx_SendString(USART1,(char*)"6\n");
 					strcpy(EW, p);
 					index++;
 					break;
 					case 6:
-					//USARTx_SendString(USART1,(char*)"7\n");
 					strcpy(qualitiGPS, p);
 					index++;
 					break;
 					case 7:
-					//USARTx_SendString(USART1,(char*)"8\n");
 					strcpy(number_satellites, p);
 					index++;
 					break;
 					case 8:
-					//USARTx_SendString(USART1,(char*)"9\n");
 					strcpy(horizontal_dilution, p);
 					index++;
 					break;
 					case 9:
-					//USARTx_SendString(USART1,(char*)"10\n");
 					strcpy(antenna_sea, p);
 					index++;
 					break;
 					case 10:
-					//USARTx_SendString(USART1,(char*)"11\n");
 					strcpy(unit_antenna, p);
 					index++;
 					break;
 					case 11:
-					//USARTx_SendString(USART1,(char*)"12\n");
 					strcpy(Geoidal_separation, p);
 					index++;
 					break;
 					case 12:
-					//USARTx_SendString(USART1,(char*)"13\n");
 					strcpy(unit_Geoidal, p);
 					index++;
 					break;
 					case 13:
-					//USARTx_SendString(USART1,(char*)"14\n");
-					strcpy(Differential_GPS, p);
+					strcpy(Differe ntial_GPS, p);
 					index++;
 					break;
 					case 14:
-					//USARTx_SendString(USART1,(char*)"15\n");
 					strcpy(station_ID, p);
 					index++;
 					break;
-					//case 15 :
-					//USARTx_SendString(USART1,(char*)"16\n");
-					//    strcpy(checksum,p);
-					//	index++;
-					//    break;
 					default://Optional
 					index++;
 					break;
@@ -770,21 +956,15 @@ static void TaskA(void *pvParameters) {
 					(char*) "******Luu GPGGA co gia tri la:\n");
 			USARTx_SendString(USART1, (char*) GPGGA);
 			USARTx_SendString(USART1, (char*) "\n");
-			//USARTx_SendString(USART1,(char*)"*****Luu GPGSA co gia tri la:\n");
-			//USARTx_SendString(USART1,(char*)GPGSA);
-			//USARTx_SendString(USART1,(char*)"\n");
-			//USARTx_SendString(USART1,(char*)"*****Luu GPRMC co gia tri la:\n");
-			//USARTx_SendString(USART1,(char*)GPRMC);
-			//USARTx_SendString(USART1,(char*)"\n");
 		}
 #endif // debugA
-		vTaskDelay(1000);
+		vTaskDelay(500);
 	}
 }
 
 static void TaskB(void *pvParameters) {
 	uint8_t timeOpenTCP = 0;
-	startSIM: QTM95.runOpen = 20;
+	startSIM: QTM95.runOpen = 10;
 	QTM95.tcp = 0;
 	QTM95.nat = 0;
 	resetBufQTM95();
@@ -806,7 +986,7 @@ static void TaskB(void *pvParameters) {
 		if (QTM95.ping >= 260) {
 			QTM95.nat = 0;
 			QTM95.ping = 0;
-			QTM95.runOpen = 20;
+			QTM95.runOpen = 10;
 			debugWarn("Waiting for PING overtime, try to connect again...");
 		}
 		if (!QTM95.nat) {
@@ -815,14 +995,15 @@ static void TaskB(void *pvParameters) {
 			QTM95.ping++;
 			QTM95.runOpen = 0;
 		}
-		if (QTM95.runOpen >= 20) {
+		if (QTM95.runOpen >= 10) {
+			QTM95.nat = 0;
 			QTM95.sendSub = 1;
 			timeOpenTCP++;
 			if (checkGPRS() != Good) {
 				debugError("GPRS not working, try to check again...");
 			} else if (!openTCP()) {
 				debugError("Open TCP fail");
-			} else if (!(connectNat())) {
+			} else if ((!connectNat()) || (timeOpenTCP == 2)) {
 				debugError(
 						"Connect to Nat fail, try to close TCP and connect again...");
 				if (closeTCP()) {
@@ -834,7 +1015,7 @@ static void TaskB(void *pvParameters) {
 				debugInfo("TCP ok, Wating for Nat respond...");
 				QTM95.runOpen = 0;
 			}
-			if ((timeOpenTCP >= 3)) {
+			if ((timeOpenTCP >= 4)) {
 				debugWarn("cannot connect, try to retset QTM95...");
 				resetQTM95fc();
 				timeOpenTCP = 0;
@@ -848,6 +1029,8 @@ static void TaskB(void *pvParameters) {
 					QTM95.sendSub = 0;
 				} else {
 					debugError("SUB fail, try send again...");
+					QTM95.runOpen = 11;
+					QTM95.nat = 0;
 				}
 			} else {
 				debugWarn(
@@ -861,19 +1044,26 @@ static void TaskB(void *pvParameters) {
 				memset(&msgDataLocal, 0, sizeof(msgDataSend));
 				strncpy(msgDataLocal.text1, strPub, strlen(strPub));
 				sprintf(msgDataLocal.text2, "Combo + %s", msgDataLocal.text1);
+				memset(strPub, 0, sizeof(strPub));
 				msgDataLocal.num1 = rand() % 50;
 				msgDataLocal.num2 = rand() % 10;
 				if (encodeDat(buffer)) {
 					if (sendPub(buffer)) {
+						debugWarn("buffer send: ");
+						debugWarn(buffer);
 						debugInfo("Publish data to server is ok ^.^");
 						QTM95.sendPub = 0;
 					} else {
-						debugError(
-								"PUB pb_byte_tfail, try to check connect...");
+						QTM95.runOpen = 11;
+						QTM95.nat = 0;
+						debugError("PUB fail, try to check connect...");
 					}
 				} else {
 					debugError("Encode Data fail.");
 				}
+				sprintf(buffer, "text size: %d\ntext2 size: %d",
+						strlen(msgDataLocal.text1), strlen(msgDataLocal.text2));
+				debugWarn(buffer);
 				vPortFree(buffer);
 			} else {
 				debugWarn(
@@ -904,7 +1094,7 @@ static void TaskC(void *pvParameters) {
 			break;
 		case run:
 			debugInfo("received Command: run");
-			QTM95.runOpen = 1;
+			QTM95.runOpen = 10;
 			break;
 		case sendPUB:
 			debugInfo("received Command: sendPUB");
@@ -929,17 +1119,34 @@ static void TaskC(void *pvParameters) {
 static void TaskD(void *pvParameters) {
 
 	for (;;) {
+		I2C_ByteWrite(I2C1, Slave_Address, (u8*) MasterTxBuffer, 3);
+		I2C_BufferRead(I2C1, Slave_Address, (u8*) MasterRxBuffer, 3);
 		vTaskDelay(1000);
 	}
 }
 
-/****************************************************************************/
+/***************************** Network **********************************/
+
+/*-------------------- GSM_Cmd -----------------------------
+ * Brief: send AT command to module SIM over UART2
+ * Param:	AT			|	IN	|	input AT command to send (Ex: "AT+CPIN?").
+ * Ret:		Not.
+ ----------------------------------------------------------*/
+
+void GSM_Cmd(char *AT) {
+	char *cmd = pvPortMalloc(strlen(AT) + 5);
+	memset(cmd, 0, strlen(AT) + 5);
+	strcpy(cmd, AT);
+	strcat(cmd, "\r\n");
+	USARTx_SendString(USART2, cmd);
+	vPortFree(cmd);
+}
 
 void specFc() {
 	if (checkReqQTM95() == QIRDI) {
 		QTM95.QIRDI = 1;
+		resetBufQTM95();
 	}
-	resetBufQTM95();
 }
 
 int checkReqQTM95() {
@@ -953,7 +1160,7 @@ void resetQTM95fc() {
 	GPIO_SetBits(GPIOC, GSM_RST_Pin);
 	vTaskDelay(200);
 	GPIO_ResetBits(GPIOC, GSM_RST_Pin);
-	vTaskDelay(2000);
+	vTaskDelay(10000);
 	debugWarn("Reset Module QuecTelM95 OK");
 }
 
@@ -978,7 +1185,7 @@ int turnOnEchoM95() {
 }
 
 int checkSIM() {
-	char ret = 0;
+	uint8_t ret = 0;
 	GSM_Cmd("AT+CPIN?");
 	if (findStrSim("READY", 500)) {
 		ret = Good;
@@ -989,7 +1196,7 @@ int checkSIM() {
 }
 
 int checkGSM() {
-	char ret = 0;
+	uint8_t ret = 0;
 	GSM_Cmd("AT+GCAP");
 	if (findStrSim("GSM", 500)) {
 		ret = Good;
@@ -1000,18 +1207,23 @@ int checkGSM() {
 }
 
 int checkGPRS() {
-	char ret = 0;
+	uint8_t ret = 0;
 	GSM_Cmd("AT+CREG?");
 	if (findStrSim("+CREG: 0,1", 1000)) {
 		ret = Good;
 	} else {
-		ret = NotRespond;
+		GSM_Cmd("AT+CREG?");
+		if (findStrSim("+CREG: 0,1", 1000)) {
+			ret = Good;
+		} else {
+			ret = NotRespond;
+		}
 	}
 	return ret;
 }
 
 int configFGCNT() {
-	char ret = 0;
+	uint8_t ret = 0;
 	GSM_Cmd("AT+QIFGCNT?");
 	if (findStrSim("OK", 1000)) {
 		if (findStrSim("+QIFGCNT: 0,", 500)) {
@@ -1135,7 +1347,7 @@ int configTCP() {
 }
 
 int closeTCP() {
-	char ret = 0;
+	uint8_t ret = 0;
 	GSM_Cmd("AT+QICLOSE");
 	if (findStrSim("CLOSE OK", 1000)) {
 		ret = 1;
@@ -1151,8 +1363,8 @@ int closeTCP() {
 }
 
 int sendDOS(char *data) {
-	char ret = 0;
-	char len = 0;
+	uint8_t ret = 0;
+	uint8_t len = 0;
 	len = strlen(data);
 	char *cmd = pvPortMalloc(15);
 	memset(cmd, 0, 15);
@@ -1169,6 +1381,7 @@ int sendDOS(char *data) {
 	} else if (findStrSim("ERROR", 1)) {
 		ret = 0;
 	}
+	debugWarn(cmd);
 	vPortFree(cmd);
 	return ret;
 }
@@ -1210,7 +1423,7 @@ int configQIRD(char *sign) {
 }
 
 int sendPONG() {
-	char ret = 0;
+	uint8_t ret = 0;
 	char *cmd = pvPortMalloc(10);
 	memset(cmd, 0, 10);
 	sprintf(cmd, "PONG\r\n");
@@ -1223,7 +1436,7 @@ int sendPONG() {
 }
 
 int sendPub(char *strP) {
-	char ret = 0;
+	uint8_t ret = 0;
 	int i = strlen(strP);
 	char *strPsend = pvPortMalloc(i + 33);
 	memset(strPsend, 0, i + 33);
@@ -1232,11 +1445,12 @@ int sendPub(char *strP) {
 		ret = 1;
 	} else
 		ret = 0;
+	vPortFree(strPsend);
 	return ret;
 }
 
 int sendSub() {
-	char ret = 0;
+	uint8_t ret = 0;
 	if (sendDOS("SUB R.0000000000.CMD 1\r\n")) {
 		ret = 1;
 	} else
@@ -1245,12 +1459,15 @@ int sendSub() {
 }
 
 int encodeDat(char *dis) {
-	char ret = 0;
+	uint8_t ret = 0;
 	char buffer[msgDataSend_size];
 	memset(buffer, 0, msgDataSend_size);
-	pb_ostream_t stream = pb_ostream_from_buffer(buffer, sizeof(buffer));
+	pb_ostream_t stream = pb_ostream_from_buffer((pb_byte_t *) buffer,
+			sizeof(buffer));
 	if (pb_encode(&stream, msgDataSend_fields, &msgDataLocal)) {
 		strncpy(dis, buffer, strlen(buffer));
+		sprintf(buffer, "Encoded size is %d\n", stream.bytes_written);
+		debugWarn(buffer);
 		ret = 1;
 	} else {
 		ret = 0;
@@ -1260,11 +1477,12 @@ int encodeDat(char *dis) {
 
 int decodeDat(char *indat) {
 	memset(&msgDataServer, 0, sizeof(msgDataSend));
-	char ret = 0;
+	uint8_t ret = 0;
 	char buffer[msgDataSend_size];
 	memset(buffer, 0, msgDataSend_size);
 	strncpy(buffer, indat, strlen(indat));
-	pb_istream_t stream = pb_istream_from_buffer(buffer, sizeof(buffer));
+	pb_istream_t stream = pb_istream_from_buffer((pb_byte_t *) buffer,
+			sizeof(buffer));
 	if (pb_decode(&stream, msgDataSend_fields, &msgDataServer)) {
 		ret = 1;
 	} else
@@ -1273,33 +1491,46 @@ int decodeDat(char *indat) {
 }
 
 int getMSG(char *msg, char *dis) {
-	char ret = 0;
-	char temp[256];
-	memset(temp, 0, 256);
-	char num[5];
+	uint8_t ret = 0;
+	char *temp = pvPortMalloc(msgDataSend_size + 50);
+	memset(temp, 0, msgDataSend_size + 50);
+	char *num = pvPortMalloc(5);
 	memset(num, 0, 5);
-	strcpy(temp, msg);
-	if (strstr(temp, "MSG") != NULL) {
-		strcpy(&temp[0], strstr(temp, "MSG") + 23);
-		if (strstr(temp, "\n") != NULL) {
-			char temp1[200];
-			strcpy(&temp1[0], strstr(temp, "\n") + strlen("\n"));
-			strncpy(num, temp, strlen(temp) - strlen(temp1));
-			if (num != NULL) {
-				int lenmsg = atoi(num);
-				strncpy(dis, temp1, lenmsg);
-				ret = 1;
-			}
+	if ((msg != NULL)&&(dis != NULL)) {
+		strncpy(temp, msg, sizeof(temp));
+		if (strstr(temp, "MSG") != NULL) {
+			strcpy(&temp[0], strstr(temp, "MSG") + 23);
+			if (strstr(temp, "\n") != NULL) {
+				char *temp1 = pvPortMalloc(msgDataSend_size + 50);
+				memset(temp1, 0, msgDataSend_size + 50);
+				strcpy(&temp1[0], strstr(temp, "\n") + strlen("\n"));
+				strncpy(num, temp, strlen(temp) - strlen(temp1));
+				if (num != NULL) {
+					int lenmsg = atoi(num);
+					strncpy(dis, temp1, lenmsg);
+					if (strlen(dis) < lenmsg) {
+						ret = 2;
+					} else if (strlen(dis) == lenmsg) {
+						ret = 1;
+					} else 
+						ret = 0;
+				} else 
+					ret = 0;
+			} else
+				ret = 0;
 		} else
 			ret = 0;
-	} else
+	} else {
 		ret = 0;
+	}
+	vPortFree(temp);
+	vPortFree(num);
 	return ret;
 }
 
 int getDataServer() {
 	uint8_t ret = 0;
-	if (configQIRD("\nOK")) {
+	if (configQIRD("\r\nOK")) {
 		QTM95.dataOther = 1;
 		if (findStrSim("+OK", 1)) {
 			debugInfo("Connected to NAT");
@@ -1312,9 +1543,7 @@ int getDataServer() {
 			QTM95.nat = 0;
 		}
 		if (strstr(bufRxDataUart2, "PING") != NULL) {
-			debugInfo("Detected PING>>>>>");
 			if (sendPONG()) {
-				debugInfo("Da PONG lai ok...");
 				QTM95.ping = 0;
 				QTM95.nat = 1;
 			} else {
@@ -1325,19 +1554,22 @@ int getDataServer() {
 			QTM95.dataOther = 0;
 		}
 		if (strstr(bufRxDataUart2, "MSG") != NULL) {
-			char *MSG = pvPortMalloc(msgDataSend_size);
-			memset(MSG, 0, msgDataSend_size);
+			char *MSG = pvPortMalloc(msgDataSend_size + 50);
+			memset(MSG, 0, msgDataSend_size + 50);
 			if (splitStr(bufRxDataUart2, "MSG", "\r\nOK", MSG, 1)) {
 				char *strMSG = pvPortMalloc(msgDataSend_size);
 				memset(strMSG, 0, msgDataSend_size);
-				getMSG(MSG, strMSG);
-				if (decodeDat(strMSG)) {
-					QTM95.newmsg = 1;
+				if (getMSG(MSG, strMSG)) {
+					if (decodeDat(strMSG)) {
+						QTM95.newmsg = 1;
+					} else {
+						debugError("Decode Data fail.");
+//					debugError(MSG);
+//					debugInfo("MSG:");
+//					debugInfo(strMSG);
+					}
 				} else {
-					debugError("Decode Data fail.");
-					debugError(MSG);
-					debugInfo("MSG:");
-					debugInfo(strMSG);
+					debugError("Get message error");
 				}
 				vPortFree(strMSG);
 			}
@@ -1351,6 +1583,8 @@ int getDataServer() {
 	} else {
 		ret = 0;
 	}
+	debugError("Buffer received: ");
+	debugPrint(bufRxDataUart2);
 	return ret;
 }
 
@@ -1362,6 +1596,10 @@ int checkTCP() {
 	}
 	return ret;
 }
+
+/*************************** Accelerometer **************************/
+
+/***************************** Other ********************************/
 
 void Delayus(__IO uint32_t nCount) {
 	while (nCount--) {
