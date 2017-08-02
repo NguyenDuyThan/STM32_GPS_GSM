@@ -24,6 +24,7 @@
 #define GSM_RST_Pin	GPIO_Pin_3
 #define GSM_RST_Port	GPIOC
 
+#define msgsize	512
 #define bufLogSize	1024
 #define bufRxDataUart2Size	1024
 #define bufRxDataUart1Size	1024
@@ -51,8 +52,13 @@ int indexBufLog = 0;
 int indexBufRxDataUart2 = 0;
 char bufRxDataUart2[bufRxDataUart2Size];
 
-char strPub[512];
-char strPubSend[512];
+char strPub[msgsize];
+char strPubSend[msgsize];
+
+char msgQIRD[msgDataSend_size + 50];
+char lenTCP[5];
+char strTCP[msgDataSend_size + 40];
+char strMSG[msgDataSend_size + 30];
 
 struct debugFlag {
 	int log;
@@ -69,10 +75,16 @@ typedef struct sysFlag_t {
 	volatile int tcp;
 	volatile int nat;
 	volatile int ping;
-	volatile int newmsg;
 } sysFlag;
 sysFlag QTM95;
 
+typedef struct msgFlag_t {
+	int len;
+	char data[msgsize];
+	int part;
+	int new;
+} msgFlag;
+msgFlag msg;
 msgDataSend msgDataLocal;
 msgDataSend msgDataServer;
 
@@ -165,7 +177,8 @@ int checkTCP();
 
 int encodeDat(char *dis);
 int decodeDat(char *indat);
-int getMSG(char *msg, char *dis);
+int getMSG();
+//int getMSG(char *strmsg, char *dis);
 int getDataServer();
 
 void I2C_ByteWrite(I2C_TypeDef* I2Cx, u8 slaveAddr, u8* pBuffer,
@@ -681,30 +694,31 @@ int checkStr(char *source, char *strSign, int timeOut) {
  -------------------------------------------------------------------------------*/
 
 int splitStr(char *source, char *start, char *stop, char *dis, int stat) {
-	int ret = 0;
-	if ((source != NULL) && (start != NULL) && (stop != NULL)) {
-		char temp[250];
-		memset(temp, 0, 255);
-		strcpy(temp, source);
-		if (stat) {
-			if (strstr(temp, start) != NULL) {
-				strcpy(&temp[0], strstr(temp, start));
-				if (strstr(temp, stop) != NULL) {
-					char temp1[200];
-					strcpy(&temp1[0], strstr(temp, stop) + strlen(stop));
-					strncpy(dis, temp, strlen(temp) - strlen(temp1));
+	uint8_t ret = 0;
+	if ((source != NULL) && (start != NULL) && (stop != NULL)
+			&& (dis != NULL)) {
+		char srctemp[msgsize];
+		memset(srctemp, 0, msgsize);
+		strncpy(srctemp, source, strlen(source));
+		if (stat == 1) {
+			if (strstr(srctemp, start) != NULL) {
+				strcpy(&srctemp[0], strstr(srctemp, start));
+				if (strstr(srctemp, stop) != NULL) {
+					char temp1[msgsize];
+					strcpy(&temp1[0], strstr(srctemp, stop) + strlen(stop));
+					strncpy(dis, srctemp, strlen(srctemp) - strlen(temp1));
 					ret = 1;
 				} else
 					ret = 0;
 			} else
 				ret = 0;
 		} else {
-			if (strstr(temp, start) != NULL) {
-				strcpy(&temp[0], strstr(temp, start) + strlen(start));
-				if (strstr(temp, stop) != NULL) {
-					char temp1[200];
-					strcpy(&temp1[0], strstr(temp, stop));
-					strncpy(dis, temp, strlen(temp) - strlen(temp1));
+			if (strstr(srctemp, start) != NULL) {
+				strcpy(&srctemp[0], strstr(srctemp, start) + strlen(start));
+				if (strstr(srctemp, stop) != NULL) {
+					char temp1[msgsize];
+					strcpy(&temp1[0], strstr(srctemp, stop));
+					strncpy(dis, srctemp, strlen(srctemp) - strlen(temp1));
 					ret = 1;
 				} else
 					ret = 0;
@@ -751,9 +765,19 @@ int checkCmd(char *source, char *strSign, int timeOut) {
 		if (strstr(source, "run"))
 			return run;
 		if (strstr(source, "sendPUB")) {
-			if (strstr(source, "msg") != NULL)
-				strcpy(&strPub[0], strstr(source, "msg") + strlen("msg"));
-			return sendPUB;
+			if (strstr(source, "msg") != NULL) {
+				char *temp = pvPortMalloc(512);
+				strcpy(&temp[0], strstr(source, "msg") + strlen("msg"));
+				memset(strPub, 0, sizeof(strPub));
+				if (strlen(temp) >= 200) {
+					strncpy(strPub, temp, 100);
+				} else {
+					strcpy(&strPub[0], strstr(source, "msg") + strlen("msg"));
+				}
+				vPortFree(temp);
+				return sendPUB;
+			}
+			return 100;
 		}
 		if (strstr(source, "sendSUB")) {
 			return sendSUB;
@@ -778,6 +802,8 @@ int resetBuf(char *strBuf, int *indexBuf, int lenBuf) {
 int main(void) {
 	dbQuecTelM95.log = 0;
 	db.log = 1;
+	msg.part = 0;
+	msg.new = 0;
 
 	GPIO_Configuration();
 	I2C_Configuration();
@@ -798,9 +824,9 @@ int main(void) {
 	debugInfo(">>>>>>> OK.");
 	debugInfo("Waiting for data to show...");
 
-	xTaskCreate(TaskB, (signed char* )"TaskB", 1024, NULL, 4, NULL);
-	xTaskCreate(TaskA, (signed char* )"TaskA", 128, NULL, 3, NULL);
-	xTaskCreate(TaskC, (signed char* )"TaskC", 128, NULL, 2, NULL);
+	xTaskCreate(TaskB, (signed char* )"TaskB", 2048, NULL, 4, NULL);
+	xTaskCreate(TaskA, (signed char* )"TaskA", 512, NULL, 3, NULL);
+	xTaskCreate(TaskC, (signed char* )"TaskC", 512, NULL, 2, NULL);
 	xTaskCreate(TaskD, (signed char* )"TaskD", 128, NULL, 1, NULL);
 	vTaskStartScheduler();
 }
@@ -964,7 +990,8 @@ static void TaskA(void *pvParameters) {
 
 static void TaskB(void *pvParameters) {
 	uint8_t timeOpenTCP = 0;
-	startSIM: QTM95.runOpen = 10;
+	uint8_t timeNat = 0;
+	startSIM: QTM95.runOpen = 1;
 	QTM95.tcp = 0;
 	QTM95.nat = 0;
 	resetBufQTM95();
@@ -972,38 +999,30 @@ static void TaskB(void *pvParameters) {
 		debugError("SIM Fail");
 	} else if (checkGSM() != Good) {
 		debugError("GSM Fail");
+	} else if (checkGPRS() != Good) {
+		debugError("GPRS not working, try to check again...");
 	} else
 		debugInfo("signal GSM Good");
 	resetBufQTM95();
 	while (1) {
 		specFc();
+		if(timeNat)
 		if (QTM95.QIRDI) {
-			if (!getDataServer()) {
+			if (getDataServer() == 0) {
 				debugError("Cannot get data");
+				debugPrint(bufRxDataUart2);
 			}
 			QTM95.QIRDI = 0;
 		}
-		if (QTM95.ping >= 260) {
-			QTM95.nat = 0;
-			QTM95.ping = 0;
-			QTM95.runOpen = 10;
-			debugWarn("Waiting for PING overtime, try to connect again...");
-		}
-		if (!QTM95.nat) {
-			QTM95.runOpen++;
-		} else {
-			QTM95.ping++;
-			QTM95.runOpen = 0;
-		}
-		if (QTM95.runOpen >= 10) {
+		if (QTM95.runOpen) {
 			QTM95.nat = 0;
 			QTM95.sendSub = 1;
 			timeOpenTCP++;
-			if (checkGPRS() != Good) {
-				debugError("GPRS not working, try to check again...");
-			} else if (!openTCP()) {
+			if (!openTCP()) {
 				debugError("Open TCP fail");
-			} else if ((!connectNat()) || (timeOpenTCP == 2)) {
+			} else if ((!connectNat()) || (timeOpenTCP == 2)
+					|| (timeOpenTCP == 4) || (timeOpenTCP == 6)
+					|| (timeOpenTCP == 8)) {
 				debugError(
 						"Connect to Nat fail, try to close TCP and connect again...");
 				if (closeTCP()) {
@@ -1015,7 +1034,7 @@ static void TaskB(void *pvParameters) {
 				debugInfo("TCP ok, Wating for Nat respond...");
 				QTM95.runOpen = 0;
 			}
-			if ((timeOpenTCP >= 4)) {
+			if ((timeOpenTCP >= 10)) {
 				debugWarn("cannot connect, try to retset QTM95...");
 				resetQTM95fc();
 				timeOpenTCP = 0;
@@ -1023,63 +1042,53 @@ static void TaskB(void *pvParameters) {
 			}
 		}
 		if (QTM95.sendSub) {
-			if (QTM95.nat) {
 				if (sendSub()) {
 					debugInfo("SUB ok...");
 					QTM95.sendSub = 0;
 				} else {
 					debugError("SUB fail, try send again...");
-					QTM95.runOpen = 11;
-					QTM95.nat = 0;
+					QTM95.runOpen = 1;
 				}
-			} else {
-				debugWarn(
-						"Waiting for connect Nat to server, Please wait Send SUB...");
-			}
 		}
 		if (QTM95.sendPub) {
-			if (QTM95.nat) {
 				char *buffer = pvPortMalloc(msgDataSend_size);
 				memset(buffer, 0, msgDataSend_size);
 				memset(&msgDataLocal, 0, sizeof(msgDataSend));
-				strncpy(msgDataLocal.text1, strPub, strlen(strPub));
-				sprintf(msgDataLocal.text2, "Combo + %s", msgDataLocal.text1);
+				if (strlen(strPub) >= 128) {
+					strncpy(msgDataLocal.text1, strPub, 127);
+					strncpy(&msgDataLocal.text2[0],
+							strstr(strPub, msgDataLocal.text1) + 127, 127);
+				} else {
+					strncpy(msgDataLocal.text1, strPub, strlen(strPub));
+					sprintf(msgDataLocal.text2,
+							"Chuoi ngan qua cho vo Text 1 het rui\n");
+				}
 				memset(strPub, 0, sizeof(strPub));
 				msgDataLocal.num1 = rand() % 50;
 				msgDataLocal.num2 = rand() % 10;
 				if (encodeDat(buffer)) {
 					if (sendPub(buffer)) {
-						debugWarn("buffer send: ");
-						debugWarn(buffer);
 						debugInfo("Publish data to server is ok ^.^");
 						QTM95.sendPub = 0;
 					} else {
-						QTM95.runOpen = 11;
-						QTM95.nat = 0;
+						QTM95.runOpen = 1;
 						debugError("PUB fail, try to check connect...");
 					}
 				} else {
 					debugError("Encode Data fail.");
 				}
-				sprintf(buffer, "text size: %d\ntext2 size: %d",
-						strlen(msgDataLocal.text1), strlen(msgDataLocal.text2));
-				debugWarn(buffer);
 				vPortFree(buffer);
-			} else {
-				debugWarn(
-						"Waiting for connect Nat to server. Please wait Send data to server...");
-			}
 		}
-		if (QTM95.newmsg) {
+		if (msg.new) {
 			debugInfo("New data: ");
 			char *bufferrec = pvPortMalloc(msgDataSend_size);
 			memset(bufferrec, 0, msgDataSend_size);
-			sprintf(bufferrec, "\nText1: %sNum1: %d\r\nText2: %sNum2: %d",
+			sprintf(bufferrec, "\nText1: %s\nNum1: %d\nText2: %s\nNum2: %d",
 					msgDataServer.text1, msgDataServer.num1,
 					msgDataServer.text2, msgDataServer.num2);
 			debugPrint(bufferrec);
 			vPortFree(bufferrec);
-			QTM95.newmsg = 0;
+			msg.new = 0;
 		}
 		vTaskDelay(500);
 	}
@@ -1381,23 +1390,26 @@ int sendDOS(char *data) {
 	} else if (findStrSim("ERROR", 1)) {
 		ret = 0;
 	}
-	debugWarn(cmd);
 	vPortFree(cmd);
 	return ret;
 }
 
 int openTCP() {
 	uint8_t ret = 0;
-	if (!configTCP()) {
-		debugError("configTCP error, try to config again...");
-		ret = 0;
+	if (checkTCP()) {
+		ret = 1;
 	} else {
-		GSM_Cmd("AT+QIOPEN= \"TCP\", \"itracking.vn\", 4222");
-		if (findStrSim("CONNECT", 1000)) {
-			if (findStrSim("FAIL", 1)) {
-				ret = 0;
-			} else
-				ret = 1;
+		if (!configTCP()) {
+			debugError("configTCP error, try to config again...");
+			ret = 0;
+		} else {
+			GSM_Cmd("AT+QIOPEN= \"TCP\", \"itracking.vn\", 4222");
+			if (findStrSim("CONNECT", 1000)) {
+				if (findStrSim("FAIL", 1)) {
+					ret = 0;
+				} else
+					ret = 1;
+			}
 		}
 	}
 	resetBufQTM95();
@@ -1466,8 +1478,8 @@ int encodeDat(char *dis) {
 			sizeof(buffer));
 	if (pb_encode(&stream, msgDataSend_fields, &msgDataLocal)) {
 		strncpy(dis, buffer, strlen(buffer));
-		sprintf(buffer, "Encoded size is %d\n", stream.bytes_written);
-		debugWarn(buffer);
+//		sprintf(buffer, "Encoded size is %d\n", stream.bytes_written);
+//		debugWarn(buffer);
 		ret = 1;
 	} else {
 		ret = 0;
@@ -1476,6 +1488,7 @@ int encodeDat(char *dis) {
 }
 
 int decodeDat(char *indat) {
+//	debugWarn(indat);
 	memset(&msgDataServer, 0, sizeof(msgDataSend));
 	uint8_t ret = 0;
 	char buffer[msgDataSend_size];
@@ -1490,101 +1503,147 @@ int decodeDat(char *indat) {
 	return ret;
 }
 
-int getMSG(char *msg, char *dis) {
+int getMSG() {
 	uint8_t ret = 0;
-	char *temp = pvPortMalloc(msgDataSend_size + 50);
-	memset(temp, 0, msgDataSend_size + 50);
-	char *num = pvPortMalloc(5);
-	memset(num, 0, 5);
-	if ((msg != NULL)&&(dis != NULL)) {
-		strncpy(temp, msg, sizeof(temp));
-		if (strstr(temp, "MSG") != NULL) {
-			strcpy(&temp[0], strstr(temp, "MSG") + 23);
-			if (strstr(temp, "\n") != NULL) {
-				char *temp1 = pvPortMalloc(msgDataSend_size + 50);
-				memset(temp1, 0, msgDataSend_size + 50);
-				strcpy(&temp1[0], strstr(temp, "\n") + strlen("\n"));
-				strncpy(num, temp, strlen(temp) - strlen(temp1));
-				if (num != NULL) {
-					int lenmsg = atoi(num);
-					strncpy(dis, temp1, lenmsg);
-					if (strlen(dis) < lenmsg) {
-						ret = 2;
-					} else if (strlen(dis) == lenmsg) {
-						ret = 1;
-					} else 
+	if (strstr(bufRxDataUart2, "TCP") != NULL) {
+//		char *msgQIRD = pvPortMalloc(msgDataSend_size + 50);
+		memset(msgQIRD, 0, msgDataSend_size + 50);
+		if (splitStr(bufRxDataUart2, "+QIRD:", "\nOK\r\n", msgQIRD, 0)) {
+//			char *lenTCP = pvPortMalloc(5);
+			memset(lenTCP, 0, 5);
+			splitStr(bufRxDataUart2, "TCP,", "\n", lenTCP, 0);
+			if (lenTCP != NULL) {
+				uint8_t lentcp = atoi(lenTCP);
+//				char *strTCP = pvPortMalloc(msgDataSend_size + 40);
+				memset(strTCP, 0, msgDataSend_size + 40);
+//				strcpy(strTCP, msgQIRD);
+				strncpy(&strTCP[0], strstr(msgQIRD, "\r\n") + 2, lentcp);
+//				debugWarn("strTCP:");
+//				debugPrint(strTCP);
+				if (strstr(strTCP, "MSG") != NULL) {
+//					char *strMSG = pvPortMalloc(msgDataSend_size + 30);
+					memset(strMSG, 0, msgDataSend_size + 30);
+//					strcpy(strMSG, strTCP);
+					strcpy(&strMSG[0], strstr(strTCP, "MSG") + 23);
+					if (strstr(strMSG, "\n") != NULL) {
+//						char *temp1 = pvPortMalloc(msgDataSend_size + 30);
+						char temp1[msgDataSend_size + 30];
+						memset(temp1, 0, msgDataSend_size + 30);
+//						char *lenmsg = pvPortMalloc(5);
+						char lenmsg[5];
+						memset(lenmsg, 0, 5);
+						strcpy(&temp1[0],
+								strstr(strMSG, "\r\n") + strlen("\r\n"));
+						strncpy(lenmsg, strMSG, strlen(strMSG) - strlen(temp1));
+						if (lenmsg != NULL) {
+							msg.len = atoi(lenmsg);
+							memset(msg.data, 0, msgsize);
+							strncpy(msg.data, temp1, msg.len);
+							if (strlen(msg.data) < msg.len) {
+								ret = 2;
+								msg.part = 1;
+//								strcpy(&msg.data[0], strstr(strMSG, "\n") + 2);
+//								debugWarn("msg.data 0:");
+//								debugPrint(msg.data);
+							} else if (strlen(msg.data) == msg.len) {
+//								strncpy(msg.data, temp1, msg.len);
+								msg.part = 0;
+								ret = 1;
+							} else {
+								msg.part = 0;
+								ret = 0;
+							}
+						} else {
+							ret = 0;
+						}
+//						vPortFree(temp1);
+//						vPortFree(lenmsg);
+					} else {
 						ret = 0;
-				} else 
-					ret = 0;
-			} else
+					}
+//					vPortFree(strMSG);
+				} else {
+					if (msg.part) {
+						strcat(msg.data, strTCP);
+//						debugWarn("msg.data 1:");
+//						debugPrint(msg.data);
+						if (strlen(msg.data) > msg.len) {
+							char temp[msg.len + 10];
+							memset(temp, 0, sizeof(temp));
+							strcpy(temp, msg.data);
+							memset(msg.data, 0, sizeof(msg.data));
+							strncpy(msg.data, temp, msg.len);
+							msg.part = 0;
+							ret = 1;
+						} else if (strlen(msg.data) < msg.len) {
+							msg.part = 1;
+							ret = 2;
+						} else {
+							msg.part = 0;
+							ret = 1;
+						}
+					} else {
+						ret = 0;
+					}
+				}
+//				vPortFree(strTCP);
+			} else { //no len TCP
+				msg.part = 0;
 				ret = 0;
-		} else
+			}
+//			vPortFree(lenTCP);
+		} else { //
+			msg.part = 0;
 			ret = 0;
-	} else {
+		}
+//		vPortFree(msgQIRD);
+	} else { //no TCP
 		ret = 0;
 	}
-	vPortFree(temp);
-	vPortFree(num);
 	return ret;
 }
 
 int getDataServer() {
 	uint8_t ret = 0;
-	if (configQIRD("\r\nOK")) {
-		QTM95.dataOther = 1;
+	if (configQIRD("\r\nOK\r\n")) {
 		if (findStrSim("+OK", 1)) {
 			debugInfo("Connected to NAT");
 			QTM95.nat = 1;
+			QTM95.runOpen = 0;
 		}
 		if (findStrSim("ERR", 1)) {
 			debugWarn("Connect NATs time out");
 			debugWarn("Try to connect again");
+			connectNat();
 			debugBufQTM95(bufRxDataUart2);
 			QTM95.nat = 0;
 		}
 		if (strstr(bufRxDataUart2, "PING") != NULL) {
 			if (sendPONG()) {
 				QTM95.ping = 0;
-				QTM95.nat = 1;
+				debugInfo("PONG ok");
 			} else {
 				debugWarn("PONG lai FAIL, try to send PONG again");
 				sendPONG();
 				debugBufQTM95(bufRxDataUart2);
 			}
-			QTM95.dataOther = 0;
 		}
-		if (strstr(bufRxDataUart2, "MSG") != NULL) {
-			char *MSG = pvPortMalloc(msgDataSend_size + 50);
-			memset(MSG, 0, msgDataSend_size + 50);
-			if (splitStr(bufRxDataUart2, "MSG", "\r\nOK", MSG, 1)) {
-				char *strMSG = pvPortMalloc(msgDataSend_size);
-				memset(strMSG, 0, msgDataSend_size);
-				if (getMSG(MSG, strMSG)) {
-					if (decodeDat(strMSG)) {
-						QTM95.newmsg = 1;
-					} else {
-						debugError("Decode Data fail.");
-//					debugError(MSG);
-//					debugInfo("MSG:");
-//					debugInfo(strMSG);
-					}
-				} else {
-					debugError("Get message error");
-				}
-				vPortFree(strMSG);
+		uint8_t g = getMSG();
+		if (g == 2) {
+			debugWarn("Data not enough, waiting for more data...");
+		} else if (g == 1) {
+			if (decodeDat(msg.data)) {
+				msg.new = 1;
+			} else {
+				debugError("Decode data fail");
 			}
-			vPortFree(MSG);
-			QTM95.dataOther = 0;
-		}
-		if (QTM95.dataOther == 1) {
-			QTM95.dataOther = 0;
+		} else {
+			debugWarn("Not data");
 		}
 		ret = 1;
 	} else {
 		ret = 0;
 	}
-	debugError("Buffer received: ");
-	debugPrint(bufRxDataUart2);
 	return ret;
 }
 
@@ -1595,6 +1654,15 @@ int checkTCP() {
 		ret = 1;
 	}
 	return ret;
+}
+
+int waitSer(){
+	uint8_t ret =0;
+	if(QTM95.nat == 1){
+		ret = 1;
+	} else {
+
+	}
 }
 
 /*************************** Accelerometer **************************/

@@ -1,0 +1,9 @@
+diff a/iTracking_Firmware/src/main.c b/iTracking_Firmware/src/main.c	(rejected hunks)
+@@ -1302,6 +1302,7 @@
+ 	} else
+ 		return 0;
+ }
++//test thay doi main
+ 
+ int sendSub() {
+ 	specFc();

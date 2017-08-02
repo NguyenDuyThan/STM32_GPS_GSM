@@ -2314,6 +2314,24 @@
         </settings>
     </configuration>
     <group>
-        <name></name>
+        <name>Source</name>
+        <file>
+            <name>$PROJ_DIR$\src\main.c</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\src\stm32f10x_conf.h</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\src\stm32f1xx_it.c</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\src\stm32f1xx_it.h</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\src\system_stm32f10x.c</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\src\tiny_printf.c</name>
+        </file>
     </group>
 </project>

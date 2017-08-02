@@ -44,7 +44,7 @@
                 </option>
                 <option>
                     <name>OGCoreOrChip</name>
-                    <state>0</state>
+                    <state>1</state>
                 </option>
                 <option>
                     <name>GRuntimeLibSelect</name>
@@ -78,7 +78,7 @@
                 </option>
                 <option>
                     <name>OGChipSelectEditMenu</name>
-                    <state>Default	None</state>
+                    <state>STM32F103RD	ST STM32F103RD</state>
                 </option>
                 <option>
                     <name>GenLowLevelInterface</name>
@@ -86,7 +86,7 @@
                 </option>
                 <option>
                     <name>GEndianModeBE</name>
-                    <state>0</state>
+                    <state>1</state>
                 </option>
                 <option>
                     <name>OGBufferedTerminalOutput</name>
@@ -121,7 +121,7 @@
                 </option>
                 <option>
                     <name>OGUseCmsis</name>
-                    <state>0</state>
+                    <state>1</state>
                 </option>
                 <option>
                     <name>OGUseCmsisDspLib</name>
@@ -138,7 +138,7 @@
                 </option>
                 <option>
                     <name>GFPUDeviceSlave</name>
-                    <state>Default	None</state>
+                    <state>STM32F103RD	ST STM32F103RD</state>
                 </option>
                 <option>
                     <name>FPU2</name>
@@ -332,7 +332,17 @@
                 </option>
                 <option>
                     <name>CCIncludePath2</name>
-                    <state></state>
+                    <state>D:\OneDrive - Ho Chi Minh City University of Technology\Research\Projects\Libraries_common\C\STM32F10x_StdPeriph_Driver</state>
+                    <state>D:\OneDrive - Ho Chi Minh City University of Technology\Research\Projects\Libraries_common\C\STM32F10x_StdPeriph_Driver</state>
+                    <state>D:\OneDrive - Ho Chi Minh City University of Technology\Research\Projects\Libraries_common\C\FreeRTOS_Source\include</state>
+                    <state>D:\OneDrive - Ho Chi Minh City University of Technology\Research\Projects\Libraries_common\C\FreeRTOS_Source\portable\GCC\ARM_CM0</state>
+                    <state>D:\OneDrive - Ho Chi Minh City University of Technology\Research\Projects\Libraries_common\C\FreeRTOS_Source</state>
+                    <state>D:\OneDrive - Ho Chi Minh City University of Technology\Research\Projects\Libraries_common\C\FreeRTOS_Source\portable\MemMang</state>
+                    <state>D:\OneDrive - Ho Chi Minh City University of Technology\Research\Projects\Libraries_common\C\CMSIS\Device\ST\STM32F10x\Include</state>
+                    <state>D:\OneDrive - Ho Chi Minh City University of Technology\Research\Projects\Libraries_common\C\CMSIS\Include</state>
+                    <state>D:\OneDrive - Ho Chi Minh City University of Technology\Research\Projects\Libraries_common\C\NANOPB</state>
+                    <state>D:\OneDrive - Ho Chi Minh City University of Technology\Research\Projects\Libraries_common\C\STM32F10x_StdPeriph_Driver\inc</state>
+                    <state>D:\OneDrive - Ho Chi Minh City University of Technology\Research\Projects\Libraries_common\C\STM32F10x_StdPeriph_Driver\src</state>
                 </option>
                 <option>
                     <name>CCStdIncCheck</name>
@@ -624,7 +634,7 @@
                 <option>
                     <name>OOCOutputFormat</name>
                     <version>3</version>
-                    <state>0</state>
+                    <state>1</state>
                 </option>
                 <option>
                     <name>OCOutputOverride</name>
@@ -632,7 +642,7 @@
                 </option>
                 <option>
                     <name>OOCOutputFile</name>
-                    <state></state>
+                    <state>iTracking_Firmware.hex</state>
                 </option>
                 <option>
                     <name>OOCCommandLineProducer</name>
@@ -640,7 +650,7 @@
                 </option>
                 <option>
                     <name>OOCObjCopyEnable</name>
-                    <state>0</state>
+                    <state>1</state>
                 </option>
             </data>
         </settings>
@@ -751,7 +761,7 @@
                 </option>
                 <option>
                     <name>IlinkIcfFile</name>
-                    <state>lnk0t.icf</state>
+                    <state>$TOOLKIT_DIR$\config\linker\ST\stm32f103xD.icf</state>
                 </option>
                 <option>
                     <name>IlinkIcfFileSlave</name>
@@ -811,7 +821,7 @@
                 </option>
                 <option>
                     <name>IlinkProgramEntryLabel</name>
-                    <state></state>
+                    <state>__iar_program_start</state>
                 </option>
                 <option>
                     <name>DoFill</name>
@@ -2022,6 +2032,24 @@
         </settings>
     </configuration>
     <group>
-        <name></name>
+        <name>Source</name>
+        <file>
+            <name>$PROJ_DIR$\src\main.c</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\src\stm32f10x_conf.h</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\src\stm32f1xx_it.c</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\src\stm32f1xx_it.h</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\src\system_stm32f10x.c</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\src\tiny_printf.c</name>
+        </file>
     </group>
 </project>

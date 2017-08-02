@@ -1,13 +1,330 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project>
     <fileVersion>2</fileVersion>
-    <fileChecksum>3920477295</fileChecksum>
+    <fileChecksum>1579249248</fileChecksum>
     <configuration>
         <name>Debug</name>
-        <outputs />
+        <outputs>
+            <file>$PROJ_DIR$\..\..\Libraries_common\C\STM32F10x_StdPeriph_Driver\inc\stm32f10x_gpio.h</file>
+            <file>$TOOLKIT_DIR$\inc\c\time32.h</file>
+            <file>E:\src\stm32f1xx_it.c</file>
+            <file>E:\src\stm32f10x_conf.h</file>
+            <file>$TOOLKIT_DIR$\inc\c\ycheck.h</file>
+            <file>$TOOLKIT_DIR$\inc\c\yvals.h</file>
+            <file>$PROJ_DIR$\Debug\Obj\system_stm32f10x.o</file>
+            <file>E:\src\stm32f1xx_it.h</file>
+            <file>$PROJ_DIR$\Debug\Obj\stm32f1xx_it.pbi</file>
+            <file>$PROJ_DIR$\Debug\Obj\tiny_printf.pbi</file>
+            <file>$PROJ_DIR$\Debug\Obj\main.pbi</file>
+            <file>$PROJ_DIR$\Debug\Obj\system_stm32f10x.pbi</file>
+            <file>E:\src\system_stm32f10x.c</file>
+            <file>$PROJ_DIR$\Debug\Exe\iTracking_Firmware.out</file>
+            <file>$TOOLKIT_DIR$\inc\c\string.h</file>
+            <file>$PROJ_DIR$\Debug\Obj\iTracking_Firmware.pbd</file>
+            <file>$PROJ_DIR$\Debug\Obj\tiny_printf.o</file>
+            <file>$TOOLKIT_DIR$\inc\c\stdio.h</file>
+            <file>$TOOLKIT_DIR$\inc\c\ysizet.h</file>
+            <file>E:\src\main.c</file>
+            <file>E:\src\startup_stm32f10x_hd.s</file>
+            <file>E:\src\tiny_printf.c</file>
+            <file>$TOOLKIT_DIR$\inc\c\DLib_Defaults.h</file>
+            <file>C:\Users\duyth\Desktop\main.c</file>
+            <file>$PROJ_DIR$\..\..\Libraries_common\C\NANOPB\pb_encode.h</file>
+            <file>$PROJ_DIR$\..\..\Libraries_common\C\FreeRTOS_Source\include\mpu_wrappers.h</file>
+            <file>$PROJ_DIR$\..\..\Libraries_common\C\FreeRTOS_Source\include\list.h</file>
+            <file>$PROJ_DIR$\..\..\Libraries_common\C\FreeRTOS_Source\include\projdefs.h</file>
+            <file>$PROJ_DIR$\..\..\Libraries_common\C\CMSIS\Include\core_cm3.h</file>
+            <file>$PROJ_DIR$\..\..\Libraries_common\C\FreeRTOS_Source\include\portable.h</file>
+            <file>$TOOLKIT_DIR$\inc\c\stdbool.h</file>
+            <file>$PROJ_DIR$\..\..\Libraries_common\C\CMSIS\Device\ST\STM32F10x\Include\system_stm32f10x.h</file>
+            <file>$PROJ_DIR$\..\..\Libraries_common\C\FreeRTOS_Source\include\task.h</file>
+            <file>$TOOLKIT_DIR$\inc\c\stddef.h</file>
+            <file>$PROJ_DIR$\..\..\Libraries_common\C\FreeRTOS_Source\FreeRTOSConfig.h</file>
+            <file>$PROJ_DIR$\..\..\Libraries_common\C\CMSIS\Include\core_cmFunc.h</file>
+            <file>$PROJ_DIR$\..\..\Libraries_common\C\CMSIS\Device\ST\STM32F10x\Include\stm32f10x.h</file>
+            <file>$TOOLKIT_DIR$\inc\c\intrinsics.h</file>
+            <file>$PROJ_DIR$\..\..\Libraries_common\C\FreeRTOS_Source\portable\GCC\ARM_CM0\portmacro.h</file>
+            <file>$PROJ_DIR$\..\..\Libraries_common\C\FreeRTOS_Source\include\FreeRTOS.h</file>
+            <file>$PROJ_DIR$\..\..\Libraries_common\C\NANOPB\pb.h</file>
+            <file>$TOOLKIT_DIR$\inc\c\stdint.h</file>
+            <file>$PROJ_DIR$\..\..\Libraries_common\C\NANOPB\pb_common.h</file>
+            <file>$PROJ_DIR$\..\..\Libraries_common\C\NANOPB\datastruct.pb.h</file>
+            <file>$PROJ_DIR$\..\..\Libraries_common\C\NANOPB\pb_decode.h</file>
+            <file>$PROJ_DIR$\Debug\Exe\iTracking_Firmware.hex</file>
+            <file>$PROJ_DIR$\..\..\Libraries_common\C\CMSIS\Include\core_cmInstr.h</file>
+            <file>$TOOLKIT_DIR$\inc\c\cmsis_iar.h</file>
+            <file>$PROJ_DIR$\src\stm32f1xx_it.c</file>
+            <file>$PROJ_DIR$\src\system_stm32f10x.c</file>
+            <file>$PROJ_DIR$\src\main.c</file>
+            <file>$PROJ_DIR$\src\stm32f10x_conf.h</file>
+            <file>$PROJ_DIR$\src\startup_stm32f10x_hd.s</file>
+            <file>$PROJ_DIR$\src\stm32f1xx_it.h</file>
+            <file>$PROJ_DIR$\src\tiny_printf.c</file>
+            <file>$TOOLKIT_DIR$\inc\c\time.h</file>
+            <file>$TOOLKIT_DIR$\inc\c\DLib_Product.h</file>
+            <file>$PROJ_DIR$\Debug\Obj\stm32f1xx_it.o</file>
+            <file>$TOOLKIT_DIR$\inc\c\DLib_Product_stdlib.h</file>
+            <file>$TOOLKIT_DIR$\inc\c\stdlib.h</file>
+            <file>$PROJ_DIR$\Debug\Obj\startup_stm32f10x_hd.o</file>
+            <file>$PROJ_DIR$\Debug\Obj\main.o</file>
+            <file>$TOOLKIT_DIR$\inc\c\stdarg.h</file>
+            <file>$TOOLKIT_DIR$\inc\c\DLib_Product_string.h</file>
+            <file>$PROJ_DIR$\..\..\Libraries_common\C\STM32F10x_StdPeriph_Driver\inc\stm32f10x_pwr.h</file>
+            <file>$PROJ_DIR$\..\..\Libraries_common\C\STM32F10x_StdPeriph_Driver\inc\stm32f10x_crc.h</file>
+            <file>$PROJ_DIR$\..\..\Libraries_common\C\STM32F10x_StdPeriph_Driver\inc\stm32f10x_bkp.h</file>
+            <file>$PROJ_DIR$\..\..\Libraries_common\C\STM32F10x_StdPeriph_Driver\inc\stm32f10x_cec.h</file>
+            <file>$PROJ_DIR$\..\..\Libraries_common\C\STM32F10x_StdPeriph_Driver\inc\stm32f10x_dma.h</file>
+            <file>$PROJ_DIR$\..\..\Libraries_common\C\STM32F10x_StdPeriph_Driver\inc\stm32f10x_dac.h</file>
+            <file>$PROJ_DIR$\..\..\Libraries_common\C\STM32F10x_StdPeriph_Driver\inc\stm32f10x_exti.h</file>
+            <file>$PROJ_DIR$\..\..\Libraries_common\C\STM32F10x_StdPeriph_Driver\inc\stm32f10x_adc.h</file>
+            <file>$PROJ_DIR$\..\..\Libraries_common\C\STM32F10x_StdPeriph_Driver\inc\stm32f10x_fsmc.h</file>
+            <file>$PROJ_DIR$\..\..\Libraries_common\C\STM32F10x_StdPeriph_Driver\inc\stm32f10x_iwdg.h</file>
+            <file>$PROJ_DIR$\..\..\Libraries_common\C\STM32F10x_StdPeriph_Driver\inc\stm32f10x_dbgmcu.h</file>
+            <file>$PROJ_DIR$\..\..\Libraries_common\C\STM32F10x_StdPeriph_Driver\inc\stm32f10x_sdio.h</file>
+            <file>$PROJ_DIR$\..\..\Libraries_common\C\STM32F10x_StdPeriph_Driver\inc\stm32f10x_tim.h</file>
+            <file>$PROJ_DIR$\..\..\Libraries_common\C\STM32F10x_StdPeriph_Driver\inc\stm32f10x_wwdg.h</file>
+            <file>$PROJ_DIR$\..\..\Libraries_common\C\STM32F10x_StdPeriph_Driver\inc\stm32f10x_can.h</file>
+            <file>$PROJ_DIR$\..\..\Libraries_common\C\STM32F10x_StdPeriph_Driver\inc\stm32f10x_rtc.h</file>
+            <file>$PROJ_DIR$\..\..\Libraries_common\C\STM32F10x_StdPeriph_Driver\inc\stm32f10x_flash.h</file>
+            <file>$PROJ_DIR$\..\..\Libraries_common\C\STM32F10x_StdPeriph_Driver\inc\stm32f10x_spi.h</file>
+            <file>$TOOLKIT_DIR$\inc\c\DLib_Config_Normal.h</file>
+            <file>$PROJ_DIR$\Debug\Obj\system_stm32f10x.__cstat.et</file>
+            <file>$PROJ_DIR$\Debug\Obj\tiny_printf.__cstat.et</file>
+            <file>$PROJ_DIR$\Debug\Obj\stm32f1xx_it.__cstat.et</file>
+            <file>$PROJ_DIR$\Debug\Obj\main.__cstat.et</file>
+            <file>$PROJ_DIR$\..\..\Libraries_common\C\STM32F10x_StdPeriph_Driver\inc\stm32f10x_i2c.h</file>
+            <file>$PROJ_DIR$\..\..\Libraries_common\C\STM32F10x_StdPeriph_Driver\inc\stm32f10x_usart.h</file>
+            <file>$PROJ_DIR$\..\..\Libraries_common\C\STM32F10x_StdPeriph_Driver\inc\stm32f10x_rcc.h</file>
+            <file>$PROJ_DIR$\..\..\Libraries_common\C\STM32F10x_StdPeriph_Driver\inc\misc.h</file>
+        </outputs>
+        <file>
+            <name>[ROOT_NODE]</name>
+            <outputs>
+                <tool>
+                    <name>ILINK</name>
+                    <file> 13</file>
+                </tool>
+            </outputs>
+        </file>
+        <file>
+            <name>E:\src\stm32f1xx_it.c</name>
+            <outputs>
+                <tool>
+                    <name>ICCARM</name>
+                    <file> 57</file>
+                </tool>
+                <tool>
+                    <name>BICOMP</name>
+                    <file> 8</file>
+                </tool>
+            </outputs>
+            <inputs>
+                <tool>
+                    <name>BICOMP</name>
+                    <file> 7</file>
+                </tool>
+            </inputs>
+        </file>
+        <file>
+            <name>E:\src\system_stm32f10x.c</name>
+            <outputs>
+                <tool>
+                    <name>ICCARM</name>
+                    <file> 6</file>
+                </tool>
+                <tool>
+                    <name>BICOMP</name>
+                    <file> 11</file>
+                </tool>
+            </outputs>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\Debug\Exe\iTracking_Firmware.out</name>
+            <outputs>
+                <tool>
+                    <name>OBJCOPY</name>
+                    <file> 45</file>
+                </tool>
+            </outputs>
+        </file>
+        <file>
+            <name>E:\src\main.c</name>
+            <outputs>
+                <tool>
+                    <name>ICCARM</name>
+                    <file> 61</file>
+                </tool>
+                <tool>
+                    <name>BICOMP</name>
+                    <file> 10</file>
+                </tool>
+            </outputs>
+            <inputs>
+                <tool>
+                    <name>BICOMP</name>
+                    <file> 14 18 17 4 63 5 59 55 22 56 58 1</file>
+                </tool>
+            </inputs>
+        </file>
+        <file>
+            <name>E:\src\startup_stm32f10x_hd.s</name>
+            <outputs>
+                <tool>
+                    <name>AARM</name>
+                    <file> 60</file>
+                </tool>
+            </outputs>
+        </file>
+        <file>
+            <name>E:\src\tiny_printf.c</name>
+            <outputs>
+                <tool>
+                    <name>ICCARM</name>
+                    <file> 16</file>
+                </tool>
+                <tool>
+                    <name>BICOMP</name>
+                    <file> 9</file>
+                </tool>
+            </outputs>
+            <inputs>
+                <tool>
+                    <name>BICOMP</name>
+                    <file> 5 14 22 56 17 4 18 62 63</file>
+                </tool>
+            </inputs>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\src\stm32f1xx_it.c</name>
+            <outputs>
+                <tool>
+                    <name>BICOMP</name>
+                    <file> 8</file>
+                </tool>
+                <tool>
+                    <name>__cstat</name>
+                    <file> 85</file>
+                </tool>
+            </outputs>
+            <inputs>
+                <tool>
+                    <name>ICCARM</name>
+                    <file> 53 36 28 41 4 5 22 82 56 46 47 37 35 31</file>
+                </tool>
+                <tool>
+                    <name>BICOMP</name>
+                    <file> 4 31 36 28 41 46 37 47 53 35 5 22 56</file>
+                </tool>
+            </inputs>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\src\system_stm32f10x.c</name>
+            <outputs>
+                <tool>
+                    <name>ICCARM</name>
+                    <file> 6</file>
+                </tool>
+                <tool>
+                    <name>BICOMP</name>
+                    <file> 11</file>
+                </tool>
+                <tool>
+                    <name>__cstat</name>
+                    <file> 83</file>
+                </tool>
+            </outputs>
+            <inputs>
+                <tool>
+                    <name>ICCARM</name>
+                    <file> 36 28 41 4 5 22 82 56 46 47 37 35 31</file>
+                </tool>
+                <tool>
+                    <name>BICOMP</name>
+                    <file> 41 4 28 31 46 37 47 36 35 5 22 56</file>
+                </tool>
+            </inputs>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\src\main.c</name>
+            <outputs>
+                <tool>
+                    <name>BICOMP</name>
+                    <file> 10</file>
+                </tool>
+                <tool>
+                    <name>__cstat</name>
+                    <file> 86</file>
+                </tool>
+            </outputs>
+            <inputs>
+                <tool>
+                    <name>ICCARM</name>
+                    <file> 43 40 41 4 5 22 82 56 33 18 30 14 63 36 28 46 47 37 35 31 51 71 66 78 67 65 69 74 68 70 80 72 0 87 73 64 89 79 75 81 76 88 77 90 39 27 34 29 38 25 32 26 59 58 17 55 1 24 44 42</file>
+                </tool>
+                <tool>
+                    <name>BICOMP</name>
+                    <file> 29 81 44 78 36 55 30 72 32 87 4 5 18 28 35 74 64 90 51 59 89 43 42 41 63 37 71 65 70 79 88 27 26 40 39 14 17 0 24 33 22 56 31 46 47 66 67 69 68 80 73 75 76 77 34 38 25 58 1</file>
+                </tool>
+            </inputs>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\src\startup_stm32f10x_hd.s</name>
+            <outputs>
+                <tool>
+                    <name>AARM</name>
+                    <file> 60</file>
+                </tool>
+            </outputs>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\src\tiny_printf.c</name>
+            <outputs>
+                <tool>
+                    <name>BICOMP</name>
+                    <file> 9</file>
+                </tool>
+                <tool>
+                    <name>__cstat</name>
+                    <file> 84</file>
+                </tool>
+            </outputs>
+            <inputs>
+                <tool>
+                    <name>ICCARM</name>
+                    <file> 17 4 5 22 82 56 18 14 63</file>
+                </tool>
+                <tool>
+                    <name>BICOMP</name>
+                    <file> 5 14 22 56 17 4 18 62 63</file>
+                </tool>
+            </inputs>
+        </file>
+        <forcedrebuild>
+            <name>$PROJ_DIR$\src\stm32f1xx_it.c</name>
+            <tool>ICCARM</tool>
+        </forcedrebuild>
+        <forcedrebuild>
+            <name>$PROJ_DIR$\src\main.c</name>
+            <tool>ICCARM</tool>
+        </forcedrebuild>
+        <forcedrebuild>
+            <name>$PROJ_DIR$\src\tiny_printf.c</name>
+            <tool>ICCARM</tool>
+        </forcedrebuild>
+        <forcedrebuild>
+            <name>[MULTI_TOOL]</name>
+            <tool>ILINK</tool>
+        </forcedrebuild>
+        <forcedrebuild>
+            <name>[REBUILD_ALL]</name>
+        </forcedrebuild>
     </configuration>
     <configuration>
         <name>Release</name>
         <outputs />
+        <forcedrebuild>
+            <name>[MULTI_TOOL]</name>
+            <tool>ILINK</tool>
+        </forcedrebuild>
     </configuration>
 </project>
